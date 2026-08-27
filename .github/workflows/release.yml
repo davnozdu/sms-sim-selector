@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.0.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          VER="${TAG#v}"
+          MAJOR=$(echo "$VER" | cut -d. -f1)
+          MINOR=$(echo "$VER" | cut -d. -f2)
+          PATCH=$(echo "$VER" | cut -d. -f3)
+          CODE=$(( ${MAJOR:-0} * 10000 + ${MINOR:-0} * 100 + ${PATCH:-0} ))
+          echo "tag=$TAG"   >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "zip=sms-sim-selector-$TAG.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp module.prop
+        run: |
+          sed -i "s/^version=.*/version=${{ steps.ver.outputs.tag }}/"        module.prop
+          sed -i "s/^versionCode=.*/versionCode=${{ steps.ver.outputs.code }}/" module.prop
+          cat module.prop
+
+      - name: Build zip
+        run: |
+          mkdir -p build/module
+          cp module.prop customize.sh common.sh service.sh action.sh uninstall.sh README.md LICENSE build/module/
+          cd build/module
+          zip -r9 "../../${{ steps.ver.outputs.zip }}" . -x '.*'
+          cd ../..
+          unzip -l "${{ steps.ver.outputs.zip }}"
+
+      - name: Generate update.json
+        run: |
+          cat > update.json <<JSON
+          {
+            "version": "${{ steps.ver.outputs.tag }}",
+            "versionCode": ${{ steps.ver.outputs.code }},
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/${{ steps.ver.outputs.zip }}",
+            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/main/CHANGELOG.md"
+          }
+          JSON
+          cat update.json
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          files: ${{ steps.ver.outputs.zip }}
+          generate_release_notes: true
+
+      - name: Push update.json and module.prop to main
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          sed -i "s/^version=.*/version=${{ steps.ver.outputs.tag }}/"          module.prop
+          sed -i "s/^versionCode=.*/versionCode=${{ steps.ver.outputs.code }}/" module.prop
+          cat > update.json <<JSON
+          {
+            "version": "${{ steps.ver.outputs.tag }}",
+            "versionCode": ${{ steps.ver.outputs.code }},
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/${{ steps.ver.outputs.zip }}",
+            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/main/CHANGELOG.md"
+          }
+          JSON
+          git add update.json module.prop
+          git commit -m "chore: release ${{ steps.ver.outputs.tag }}" || exit 0
+          git push origin main

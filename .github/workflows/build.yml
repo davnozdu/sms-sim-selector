@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: |
+          for f in customize.sh common.sh service.sh action.sh uninstall.sh; do
+            sh -n "$f" && echo "OK  $f"
+          done
+
+      - name: Build zip
+        run: |
+          mkdir -p build/module
+          cp module.prop customize.sh common.sh service.sh action.sh uninstall.sh README.md LICENSE build/module/
+          cd build/module && zip -r9 ../../sms-sim-selector-dev.zip . -x '.*'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sms-sim-selector-dev
+          path: sms-sim-selector-dev.zip
