@@ -1,7 +1,6 @@
 #!/system/bin/sh
 # SMS SIM Selector - Action button
 # Vol+ = SIM 1 (physical), Vol- = SIM 2 (eSIM) -> applied instantly
-# Power = keep the current selection and re-apply it
 
 MODDIR=${0%/*}
 . "$MODDIR/common.sh"
@@ -14,12 +13,11 @@ echo "==============================="
 echo ""
 echo " Vol UP    -> SIM 1 (physical)"
 echo " Vol DOWN  -> SIM 2 (eSIM)"
-echo " POWER     -> keep $(sim_label "$SMS_SIM")"
 echo ""
 echo " Current default SMS SIM: $(sim_label "$SMS_SIM")"
 echo " (system multi_sim_sms = $(current_sms_sub))"
 echo ""
-echo " Press a key... (${KEY_TIMEOUT}s timeout)"
+echo " Press a volume key... (${KEY_TIMEOUT}s timeout)"
 echo ""
 
 SEL=$SMS_SIM
@@ -33,7 +31,6 @@ while true; do
   case "$KEY" in
     KEY_VOLUMEUP)   SEL=1; break ;;
     KEY_VOLUMEDOWN) SEL=2; break ;;
-    KEY_POWER)      break ;;
   esac
 done
 

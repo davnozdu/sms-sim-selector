@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.3
+
+* Power key removed — only the volume keys are used.
+
 ## v1.0.2
 
 * Installer text matches the new one-press behaviour.

@@ -18,7 +18,6 @@ Open your root manager, find **SMS SIM Selector** in the module list and tap **A
 |-----------------|-----------------------------------------|
 | Volume **Up**   | SIM 1 (physical) — applied instantly    |
 | Volume **Down** | SIM 2 (eSIM) — applied instantly        |
-| **Power**       | keep the current SIM and re-apply it    |
 
 One press is all it takes: the SIM is applied right away, the screen says
 `APPLIED` and you can close the window. No confirmation step.
