@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1
+
+* Volume Up / Volume Down now apply the SIM immediately — no Power confirmation.
+* The result screen says `APPLIED` and that the window can be closed.
+* Power keeps the current selection and re-applies it.
+
 ## v1.0.0
 
 * First release.

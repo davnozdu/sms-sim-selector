@@ -14,14 +14,16 @@ No app, no UI, no reboot dance — one Action button and the choice sticks.
 
 Open your root manager, find **SMS SIM Selector** in the module list and tap **Action**:
 
-| Key           | Effect                  |
-|---------------|-------------------------|
-| Volume **Up** | select SIM 1 (physical) |
-| Volume **Down** | select SIM 2 (eSIM)   |
-| **Power**     | confirm and apply now   |
+| Key             | Effect                                  |
+|-----------------|-----------------------------------------|
+| Volume **Up**   | SIM 1 (physical) — applied instantly    |
+| Volume **Down** | SIM 2 (eSIM) — applied instantly        |
+| **Power**       | keep the current SIM and re-apply it    |
 
-The selection is applied immediately and re-applied on every boot.
-Default after install: **SIM 1**.
+One press is all it takes: the SIM is applied right away, the screen says
+`APPLIED` and you can close the window. No confirmation step.
+
+Default after install: **SIM 1**. The choice is re-applied on every boot.
 If no key is pressed within 60 seconds the current selection is kept and applied.
 
 ## How it works
