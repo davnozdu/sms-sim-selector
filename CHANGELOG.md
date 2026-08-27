@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.2
+
+* Installer text matches the new one-press behaviour.
+
 ## v1.0.1
 
 * Volume Up / Volume Down now apply the SIM immediately — no Power confirmation.
