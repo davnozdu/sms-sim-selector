@@ -3,9 +3,10 @@
 #
 # The framework re-picks the default SMS subscription every time the SIMs are
 # re-initialised (modem restart, eSIM refresh, carrier config reload, a restart
-# of com.android.phone). The physical slot wins that race because it reaches
-# LOADED a few milliseconds before the eSIM, so a one-shot apply at boot is
-# silently undone later on. We apply once the SIMs are up and then watch.
+# of com.android.phone) and once more when the user unlocks after a reboot. The
+# physical slot wins that race because it reaches LOADED a few milliseconds
+# before the eSIM, so a one-shot apply at boot is silently undone later on.
+# We apply once the SIMs are up and then watch.
 
 MODDIR=${0%/*}
 . "$MODDIR/common.sh"
@@ -35,20 +36,28 @@ done
 
 [ "$WATCH" = "1" ] || exit 0
 
-# Watch loop. A SIM state change is the signal that the framework is about to
-# re-pick its defaults; the periodic verify is the safety net for everything
-# else. Both read the config again, so a change made through Action is picked
-# up without a reboot.
+# Watch loop. A SIM state change or the first unlock after boot is the signal
+# that the framework is about to re-pick its defaults; the periodic verify is
+# the safety net for everything else. Both read the config again, so a change
+# made through Action is picked up without a reboot.
 last_state=$(sim_state)
+last_unlock=$(user_unlocked)
 elapsed=0
+guard=$BOOT_GUARD
 
 while true; do
   sleep "$WATCH_INTERVAL"
 
+  [ "$guard" -gt 0 ] && guard=$((guard - WATCH_INTERVAL))
+
   state=$(sim_state)
-  if [ "$state" != "$last_state" ]; then
-    log "SIM state changed: $last_state -> $state"
+  unlock=$(user_unlocked)
+
+  if [ "$state" != "$last_state" ] || [ "$unlock" != "$last_unlock" ]; then
+    [ "$state" != "$last_state" ]   && log "SIM state changed: $last_state -> $state"
+    [ "$unlock" != "$last_unlock" ] && log "user storage unlocked: $last_unlock -> $unlock"
     last_state=$state
+    last_unlock=$unlock
     elapsed=0
     case "$state" in
       *LOADED*)
@@ -60,8 +69,15 @@ while true; do
     continue
   fi
 
+  # verify often while the boot guard lasts, sparingly afterwards
+  if [ "$guard" -gt 0 ]; then
+    interval=$WATCH_INTERVAL
+  else
+    interval=$VERIFY_INTERVAL
+  fi
+
   elapsed=$((elapsed + WATCH_INTERVAL))
-  [ "$elapsed" -lt "$VERIFY_INTERVAL" ] && continue
+  [ "$elapsed" -lt "$interval" ] && continue
   elapsed=0
 
   load_config

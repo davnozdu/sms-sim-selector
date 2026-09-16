@@ -21,6 +21,10 @@ DEF_VERIFY_INTERVAL=60
 # seconds to wait after the SIMs are loaded, so the framework picks its own
 # defaults first and we get the last word
 DEF_SETTLE_DELAY=15
+# seconds after boot during which the system value is verified every
+# WATCH_INTERVAL instead of every VERIFY_INTERVAL - the framework re-picks its
+# defaults once more when the user unlocks the device
+DEF_BOOT_GUARD=600
 
 log() {
   mkdir -p "$CONF_DIR" 2>/dev/null
@@ -42,6 +46,7 @@ load_config() {
   WATCH_INTERVAL=${WATCH_INTERVAL:-$DEF_WATCH_INTERVAL}
   VERIFY_INTERVAL=${VERIFY_INTERVAL:-$DEF_VERIFY_INTERVAL}
   SETTLE_DELAY=${SETTLE_DELAY:-$DEF_SETTLE_DELAY}
+  BOOT_GUARD=${BOOT_GUARD:-$DEF_BOOT_GUARD}
   case "$SMS_SIM" in 1|2) ;; *) SMS_SIM=$DEF_SMS_SIM ;; esac
 }
 
@@ -61,6 +66,7 @@ WATCH=$WATCH
 WATCH_INTERVAL=$WATCH_INTERVAL
 VERIFY_INTERVAL=$VERIFY_INTERVAL
 SETTLE_DELAY=$SETTLE_DELAY
+BOOT_GUARD=$BOOT_GUARD
 CFG
   chmod 644 "$CONF_FILE" 2>/dev/null
 }
@@ -96,6 +102,13 @@ sim_loaded() {
     *LOADED*) return 0 ;;
     *)        return 1 ;;
   esac
+}
+
+# Cheap unlock probe. Flips to "true" when the credential encrypted storage of
+# the owner becomes available, i.e. when the user unlocks after a reboot - which
+# is when the framework re-picks the default SMS subscription once more.
+user_unlocked() {
+  getprop sys.user.0.ce_available
 }
 
 # wait_sim_loaded [timeout_seconds]

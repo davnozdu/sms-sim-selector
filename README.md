@@ -40,11 +40,18 @@ restart, an eSIM refresh, a carrier config reload, a restart of
 07:57:10.031 - updateSimState: slot 1 LOADED          <- eSIM, sub 1
 ```
 
+It happens once more on every boot, about a minute in, when you unlock the
+device: the credential encrypted storage becomes available, `SIM_STATE_CHANGED`
+is delivered again and the framework repeats the same choice — right when you
+pick the phone up, which is why it looks like the module "forgot" your setting
+during boot.
+
 Nothing is wrong with the saved config when this happens — only the applied
-system value is overwritten, hours after boot, which is why it looks like the
-module "forgot" the choice. So the module stays resident: it reacts to SIM state
-changes and re-checks the system value every `VERIFY_INTERVAL` seconds, and puts
-the choice back when something else has changed it.
+system value is overwritten. So the module stays resident: it reacts to SIM
+state changes and to the first unlock, verifies the system value every
+`WATCH_INTERVAL` seconds for the first `BOOT_GUARD` seconds after boot and every
+`VERIFY_INTERVAL` seconds afterwards, and puts the choice back when something
+else has changed it.
 
 The flip side: while the watcher runs, changing the default SMS SIM in the system
 settings will be reverted within a minute. Use Action to change it, or set
@@ -81,6 +88,7 @@ WATCH=1              # 1 = keep re-applying, 0 = apply once at boot only
 WATCH_INTERVAL=10    # seconds between two cheap SIM state checks
 VERIFY_INTERVAL=60   # seconds between two full checks of the system value
 SETTLE_DELAY=15      # seconds to wait after the SIMs load, so we get the last word
+BOOT_GUARD=600       # seconds after boot with WATCH_INTERVAL verification
 ```
 
 The transaction id differs between Android versions and vendors. If nothing changes after
@@ -92,7 +100,8 @@ adb shell settings get global multi_sim_sms
 ```
 
 `VERIFY_INTERVAL` is how long the wrong SIM can stay selected after the system
-overwrote the choice. Lower it if that matters, at the cost of more wakeups.
+overwrote the choice, once the `BOOT_GUARD` window has passed. Lower it if that
+matters, at the cost of more wakeups.
 
 ## Log
 

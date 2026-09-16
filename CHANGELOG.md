@@ -13,7 +13,13 @@
   defaults first and we get the last word.
 * `apply_sim` now verifies the result: `service call` returns success even when
   it changed nothing, which made the retry loop dead code.
-* New config keys: `WATCH`, `WATCH_INTERVAL`, `VERIFY_INTERVAL`, `SETTLE_DELAY`.
+* The first unlock after a reboot is a second trigger: the framework re-picks
+  its defaults again once the credential encrypted storage becomes available,
+  roughly a minute into the boot, right when you look at the phone. The watcher
+  reacts to it and verifies every `WATCH_INTERVAL` for the first `BOOT_GUARD`
+  seconds, so the wrong SIM is never selected for more than ~10 seconds.
+* New config keys: `WATCH`, `WATCH_INTERVAL`, `VERIFY_INTERVAL`, `SETTLE_DELAY`,
+  `BOOT_GUARD`.
 * The log only records real changes and failures instead of one block per apply.
 
 ## v1.0.3
