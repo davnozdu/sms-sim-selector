@@ -107,10 +107,12 @@ sim_loaded() {
 # True while the system is up. At shutdown /system is unmounted and every
 # command we rely on disappears - including sleep, which would otherwise spin
 # the watch loop at full speed and flood the log. [ -x ] is a shell builtin, so
-# it still answers when nothing else does.
+# this costs nothing and still answers when no external command does. A restart
+# of system_server alone is not covered here on purpose: /system stays mounted,
+# the unreadable value is skipped by the loop and the choice is re-applied once
+# the system answers again.
 system_alive() {
-  [ -x /system/bin/service ] || return 1
-  [ "$(getprop sys.boot_completed)" = "1" ]
+  [ -x /system/bin/service ]
 }
 
 # Cheap unlock probe. Flips to "true" when the credential encrypted storage of

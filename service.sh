@@ -46,16 +46,23 @@ done
 # made through Action is picked up without a reboot.
 last_state=$(sim_state)
 last_unlock=$(user_unlocked)
-elapsed=0
 guard=$BOOT_GUARD
 fails=0
 
 while true; do
+  # tight while the boot guard lasts, sparing afterwards - the sleep itself
+  # carries the cadence, so an idle iteration costs two getprops and one read
+  if [ "$guard" -gt 0 ]; then
+    interval=$WATCH_INTERVAL
+  else
+    interval=$VERIFY_INTERVAL
+  fi
+
   # a failing sleep means the system is going away - stop, do not spin
-  sleep "$WATCH_INTERVAL" || exit 0
+  sleep "$interval" || exit 0
   system_alive || exit 0
 
-  [ "$guard" -gt 0 ] && guard=$((guard - WATCH_INTERVAL))
+  [ "$guard" -gt 0 ] && guard=$((guard - interval))
 
   state=$(sim_state)
   unlock=$(user_unlocked)
@@ -65,7 +72,6 @@ while true; do
     [ "$unlock" != "$last_unlock" ] && log "user storage unlocked: $last_unlock -> $unlock"
     last_state=$state
     last_unlock=$unlock
-    elapsed=0
     case "$state" in
       *LOADED*)
         sleep "$SETTLE_DELAY"
@@ -75,17 +81,6 @@ while true; do
     esac
     continue
   fi
-
-  # verify often while the boot guard lasts, sparingly afterwards
-  if [ "$guard" -gt 0 ]; then
-    interval=$WATCH_INTERVAL
-  else
-    interval=$VERIFY_INTERVAL
-  fi
-
-  elapsed=$((elapsed + WATCH_INTERVAL))
-  [ "$elapsed" -lt "$interval" ] && continue
-  elapsed=0
 
   load_config
   now=$(current_sms_sub)

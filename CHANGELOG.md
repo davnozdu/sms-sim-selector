@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* The watch loop sleeps for the interval it actually needs instead of waking
+  every `WATCH_INTERVAL` and counting. Idle cost drops from 0.6% to 0.13% of one
+  core, measured over 12 minutes; the boot guard keeps its 10 second cadence.
+* `system_alive` no longer reads `sys.boot_completed` - the `[ -x ]` builtin
+  already catches the shutdown it guards against, and it costs nothing. A
+  restart of system_server no longer stops the watcher either.
+
 ## v1.1.0
 
 * **Fixed: the choice was silently lost after boot.** The framework re-picks the
