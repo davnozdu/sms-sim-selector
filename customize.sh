@@ -17,7 +17,8 @@ ui_print "  Open the module list and tap Action to change it:"
 ui_print "    Vol UP   -> SIM 1 (physical), applied instantly"
 ui_print "    Vol DOWN -> SIM 2 (eSIM), applied instantly"
 ui_print ""
-ui_print "  The choice is re-applied on every boot."
+ui_print "  The choice is applied after boot and re-applied whenever"
+ui_print "  the system overwrites it (modem restart, eSIM refresh)."
 ui_print ""
 
 set_perm_recursive "$MODPATH" 0 0 0755 0644

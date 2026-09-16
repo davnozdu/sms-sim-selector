@@ -1,12 +1,13 @@
 # SMS SIM Selector
 
-KernelSU / Magisk / APatch module that sets the **default SIM for SMS** on every boot.
+KernelSU / Magisk / APatch module that keeps the **default SIM for SMS** on your choice.
 
 No app, no UI, no reboot dance — one Action button and the choice sticks.
 
 ## What it does
 
-* Applies the saved SIM as the default for outgoing SMS after every boot.
+* Applies the saved SIM as the default for outgoing SMS once the SIMs are up after boot.
+* Re-applies it whenever the system overwrites it — see [Why the watcher exists](#why-the-watcher-exists).
 * Lets you switch SIMs with the **Action** button in the module list, using the hardware keys.
 * Stores the choice in `/data/adb/sms_sim_selector/config`, so it survives module updates.
 
@@ -22,8 +23,32 @@ Open your root manager, find **SMS SIM Selector** in the module list and tap **A
 One press is all it takes: the SIM is applied right away, the screen says
 `APPLIED` and you can close the window. No confirmation step.
 
-Default after install: **SIM 1**. The choice is re-applied on every boot.
+Default after install: **SIM 1**. The choice is kept applied from then on.
 If no key is pressed within 60 seconds the current selection is kept and applied.
+
+## Why the watcher exists
+
+Applying the choice once at boot is not enough. The framework re-picks the
+default SMS subscription every time the SIMs are re-initialised — a modem
+restart, an eSIM refresh, a carrier config reload, a restart of
+`com.android.phone`. The physical slot wins that race because it reaches
+`LOADED` a few milliseconds before the eSIM:
+
+```
+07:57:09.948 - updateSimState: slot 0 LOADED          <- physical SIM, sub 2
+07:57:10.022 - Default SMS subId changed from 1 to 2  <- our choice is gone
+07:57:10.031 - updateSimState: slot 1 LOADED          <- eSIM, sub 1
+```
+
+Nothing is wrong with the saved config when this happens — only the applied
+system value is overwritten, hours after boot, which is why it looks like the
+module "forgot" the choice. So the module stays resident: it reacts to SIM state
+changes and re-checks the system value every `VERIFY_INTERVAL` seconds, and puts
+the choice back when something else has changed it.
+
+The flip side: while the watcher runs, changing the default SMS SIM in the system
+settings will be reverted within a minute. Use Action to change it, or set
+`WATCH=0` to go back to the apply-once-at-boot behaviour.
 
 ## How it works
 
@@ -40,15 +65,22 @@ service call isub 37 i32 2
 `37` is the transaction id of `setDefaultSmsSubId` on the tested ROM, and `i32 <n>` is the
 subscription id. Both are configurable — see below.
 
+`service call` reports success even when it changed nothing, so every apply is
+verified against `settings get global multi_sim_sms` and retried if it did not stick.
+
 ## Configuration
 
 `/data/adb/sms_sim_selector/config`:
 
 ```sh
-SMS_SIM=1      # currently selected SIM: 1 or 2
-SUB_SIM1=2     # sub id passed to `service call isub` for SIM 1
-SUB_SIM2=1     # sub id passed to `service call isub` for SIM 2
-ISUB_CODE=37   # transaction id of setDefaultSmsSubId
+SMS_SIM=1            # currently selected SIM: 1 or 2
+SUB_SIM1=2           # sub id passed to `service call isub` for SIM 1
+SUB_SIM2=1           # sub id passed to `service call isub` for SIM 2
+ISUB_CODE=37         # transaction id of setDefaultSmsSubId
+WATCH=1              # 1 = keep re-applying, 0 = apply once at boot only
+WATCH_INTERVAL=10    # seconds between two cheap SIM state checks
+VERIFY_INTERVAL=60   # seconds between two full checks of the system value
+SETTLE_DELAY=15      # seconds to wait after the SIMs load, so we get the last word
 ```
 
 The transaction id differs between Android versions and vendors. If nothing changes after
@@ -59,14 +91,17 @@ applying, check the log and try a neighbouring number, or look it up in your ROM
 adb shell settings get global multi_sim_sms
 ```
 
+`VERIFY_INTERVAL` is how long the wrong SIM can stay selected after the system
+overwrote the choice. Lower it if that matters, at the cost of more wakeups.
+
 ## Log
 
 ```
 /data/adb/sms_sim_selector/log.txt
 ```
 
-Every apply is logged with the exact command, its return code and the resulting
-`multi_sim_sms` value.
+Only real changes and failures are logged — a quiet log means nothing has been
+overwriting your choice.
 
 ## Install
 

@@ -12,6 +12,15 @@ DEF_SMS_SIM=1
 DEF_SUB_SIM1=2
 DEF_SUB_SIM2=1
 DEF_ISUB_CODE=37
+# 1 = keep re-applying the choice after boot, 0 = apply once at boot only
+DEF_WATCH=1
+# seconds between two cheap SIM state checks
+DEF_WATCH_INTERVAL=10
+# seconds between two full checks of the system value
+DEF_VERIFY_INTERVAL=60
+# seconds to wait after the SIMs are loaded, so the framework picks its own
+# defaults first and we get the last word
+DEF_SETTLE_DELAY=15
 
 log() {
   mkdir -p "$CONF_DIR" 2>/dev/null
@@ -29,6 +38,10 @@ load_config() {
   SUB_SIM1=${SUB_SIM1:-$DEF_SUB_SIM1}
   SUB_SIM2=${SUB_SIM2:-$DEF_SUB_SIM2}
   ISUB_CODE=${ISUB_CODE:-$DEF_ISUB_CODE}
+  WATCH=${WATCH:-$DEF_WATCH}
+  WATCH_INTERVAL=${WATCH_INTERVAL:-$DEF_WATCH_INTERVAL}
+  VERIFY_INTERVAL=${VERIFY_INTERVAL:-$DEF_VERIFY_INTERVAL}
+  SETTLE_DELAY=${SETTLE_DELAY:-$DEF_SETTLE_DELAY}
   case "$SMS_SIM" in 1|2) ;; *) SMS_SIM=$DEF_SMS_SIM ;; esac
 }
 
@@ -42,6 +55,12 @@ SMS_SIM=$SMS_SIM
 SUB_SIM1=$SUB_SIM1
 SUB_SIM2=$SUB_SIM2
 ISUB_CODE=$ISUB_CODE
+# WATCH=1 re-applies the choice whenever the system overwrites it
+# (the framework re-picks the default SMS SIM on every SIM re-initialisation)
+WATCH=$WATCH
+WATCH_INTERVAL=$WATCH_INTERVAL
+VERIFY_INTERVAL=$VERIFY_INTERVAL
+SETTLE_DELAY=$SETTLE_DELAY
 CFG
   chmod 644 "$CONF_FILE" 2>/dev/null
 }
@@ -66,17 +85,48 @@ current_sms_sub() {
   settings get global multi_sim_sms 2>/dev/null
 }
 
+# Cheap SIM state probe - a plain property read, no binder call.
+# Looks like "LOADED,LOADED" once the telephony stack is up.
+sim_state() {
+  getprop gsm.sim.state
+}
+
+sim_loaded() {
+  case "$(sim_state)" in
+    *LOADED*) return 0 ;;
+    *)        return 1 ;;
+  esac
+}
+
+# wait_sim_loaded [timeout_seconds]
+wait_sim_loaded() {
+  local max=${1:-180} waited=0
+  while ! sim_loaded; do
+    sleep 2
+    waited=$((waited + 2))
+    [ "$waited" -ge "$max" ] && return 1
+  done
+  return 0
+}
+
 # apply_sim <1|2>
+# Returns 0 only when the system value really is the requested one afterwards:
+# `service call` reports success even when the call changed nothing.
 apply_sim() {
   local sim="$1"
-  local sub
+  local sub before after out rc
   sub=$(sub_for_sim "$sim")
-  local out
+  before=$(current_sms_sub)
   out=$(service call isub "$ISUB_CODE" i32 "$sub" 2>&1)
-  local rc=$?
-  log "apply $(sim_label "$sim") -> service call isub $ISUB_CODE i32 $sub (rc=$rc) $out"
-  log "multi_sim_sms is now: $(current_sms_sub)"
-  return $rc
+  rc=$?
+  after=$(current_sms_sub)
+  if [ "$after" = "$sub" ]; then
+    [ "$before" != "$after" ] && \
+      log "applied $(sim_label "$sim"): multi_sim_sms $before -> $after"
+    return 0
+  fi
+  log "FAILED to apply $(sim_label "$sim"): service call isub $ISUB_CODE i32 $sub (rc=$rc) $out -- multi_sim_sms=$after"
+  return 1
 }
 
 # Waits for a single key press (key down) and echoes the key name.
