@@ -1,7 +1,7 @@
 id=sms_sim_selector
 name=SMS SIM Selector
-version=v1.1.0
-versionCode=10100
+version=v1.1.1
+versionCode=10101
 author=davnozdu
 description=Keeps the default SMS SIM on your choice - applied after boot and re-applied whenever the system overwrites it. Tap Action, then Vol+ = SIM 1 (physical) or Vol- = SIM 2 (eSIM).
 updateJson=https://raw.githubusercontent.com/davnozdu/sms-sim-selector/main/update.json

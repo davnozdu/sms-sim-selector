@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.0",
-  "versionCode": 10100,
-  "zipUrl": "https://github.com/davnozdu/sms-sim-selector/releases/download/v1.1.0/sms-sim-selector-v1.1.0.zip",
+  "version": "v1.1.1",
+  "versionCode": 10101,
+  "zipUrl": "https://github.com/davnozdu/sms-sim-selector/releases/download/v1.1.1/sms-sim-selector-v1.1.1.zip",
   "changelog": "https://raw.githubusercontent.com/davnozdu/sms-sim-selector/main/CHANGELOG.md"
 }
