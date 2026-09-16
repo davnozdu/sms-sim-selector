@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.1
 
 * The watch loop sleeps for the interval it actually needs instead of waking
   every `WATCH_INTERVAL` and counting. Idle cost drops from 0.6% to 0.13% of one
