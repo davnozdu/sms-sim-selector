@@ -112,6 +112,9 @@ matters, at the cost of more wakeups.
 Only real changes and failures are logged — a quiet log means nothing has been
 overwriting your choice.
 
+If applying keeps failing, the watcher stops after 10 consecutive attempts and
+says so in the log — that usually means `ISUB_CODE` is wrong for your ROM.
+
 ## Install
 
 Download the zip from [Releases](../../releases) and flash it in KernelSU / Magisk / APatch,

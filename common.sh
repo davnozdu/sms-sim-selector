@@ -104,6 +104,15 @@ sim_loaded() {
   esac
 }
 
+# True while the system is up. At shutdown /system is unmounted and every
+# command we rely on disappears - including sleep, which would otherwise spin
+# the watch loop at full speed and flood the log. [ -x ] is a shell builtin, so
+# it still answers when nothing else does.
+system_alive() {
+  [ -x /system/bin/service ] || return 1
+  [ "$(getprop sys.boot_completed)" = "1" ]
+}
+
 # Cheap unlock probe. Flips to "true" when the credential encrypted storage of
 # the owner becomes available, i.e. when the user unlocks after a reboot - which
 # is when the framework re-picks the default SMS subscription once more.

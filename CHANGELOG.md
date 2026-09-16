@@ -18,6 +18,11 @@
   roughly a minute into the boot, right when you look at the phone. The watcher
   reacts to it and verifies every `WATCH_INTERVAL` for the first `BOOT_GUARD`
   seconds, so the wrong SIM is never selected for more than ~10 seconds.
+* The watcher stops cleanly at shutdown. `/system` is unmounted while it is
+  still running, which takes `sleep` away with everything else - the loop then
+  span at full speed and flooded the log, trimming away the real history. It now
+  bails out as soon as the system stops answering, skips a verify it cannot read
+  and gives up after 10 consecutive failed applies instead of logging forever.
 * New config keys: `WATCH`, `WATCH_INTERVAL`, `VERIFY_INTERVAL`, `SETTLE_DELAY`,
   `BOOT_GUARD`.
 * The log only records real changes and failures instead of one block per apply.

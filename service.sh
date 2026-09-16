@@ -9,6 +9,9 @@
 # We apply once the SIMs are up and then watch.
 
 MODDIR=${0%/*}
+PATH=/system/bin:/system/xbin:/vendor/bin:$PATH
+export PATH
+
 . "$MODDIR/common.sh"
 
 # wait for the system to finish booting
@@ -31,7 +34,8 @@ n=0
 while [ $n -lt 10 ]; do
   apply_sim "$SMS_SIM" && break
   n=$((n + 1))
-  sleep 5
+  sleep 5 || break
+  system_alive || break
 done
 
 [ "$WATCH" = "1" ] || exit 0
@@ -44,9 +48,12 @@ last_state=$(sim_state)
 last_unlock=$(user_unlocked)
 elapsed=0
 guard=$BOOT_GUARD
+fails=0
 
 while true; do
-  sleep "$WATCH_INTERVAL"
+  # a failing sleep means the system is going away - stop, do not spin
+  sleep "$WATCH_INTERVAL" || exit 0
+  system_alive || exit 0
 
   [ "$guard" -gt 0 ] && guard=$((guard - WATCH_INTERVAL))
 
@@ -81,5 +88,19 @@ while true; do
   elapsed=0
 
   load_config
-  [ "$(current_sms_sub)" = "$(sub_for_sim "$SMS_SIM")" ] || apply_sim "$SMS_SIM"
+  now=$(current_sms_sub)
+
+  # an unreadable value means the system is not answering, not a mismatch
+  [ -z "$now" ] && continue
+  [ "$now" = "$(sub_for_sim "$SMS_SIM")" ] && { fails=0; continue; }
+
+  if apply_sim "$SMS_SIM"; then
+    fails=0
+  else
+    fails=$((fails + 1))
+    if [ "$fails" -ge 10 ]; then
+      log "giving up after $fails failed attempts - check ISUB_CODE, see the README"
+      exit 1
+    fi
+  fi
 done
